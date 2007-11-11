@@ -1,11 +1,13 @@
 package HTML::Selector::XPath;
 
 use strict;
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 require Exporter;
 our @EXPORT_OK = qw(selector_to_xpath);
 *import = \&Exporter::import;
+
+use Carp;
 
 sub selector_to_xpath {
     __PACKAGE__->new(shift)->to_xpath;
@@ -19,7 +21,7 @@ my $reg = {
     # attribute value match
     attr2   => qr/^\[\s*([^~\|=\s]+)\s*([~\|]?=)\s*"([^"]+)"\s*\]/i,
     attrN   => qr/^:not\((.*?)\)/i,
-    pseudo  => qr/^:([()a-z_-]+)/i,
+    pseudo  => qr/^:([()a-z0-9_-]+)/i,
     # adjacency/direct descendance
     combinator => qr/^(\s*[>+\s])/i,
     # rule separator
@@ -85,10 +87,8 @@ sub to_xpath {
             } else { # exact match
                 push @parts, "[\@$1='$3']";
             }
-        } else {
-            if ($rule =~ s/$reg->{attr1}//) {
-                push @parts, "[\@$1]";
-            }
+        } elsif ($rule =~ s/$reg->{attr1}//) {
+            push @parts, "[\@$1]";
         }
 
         # Match negation
@@ -104,6 +104,8 @@ sub to_xpath {
                 }
             } elsif ($sub_rule =~ s/$reg->{attr1}//) {
                 push @parts, "[not(\@$1)]";
+            } else {
+                Carp::croak "Can't translate '$sub_rule' inside :not()";
             }
         }
 
@@ -113,6 +115,10 @@ sub to_xpath {
                 $parts[$#parts] = '*[1]/self::' . $parts[$#parts];
             } elsif ($1 =~ /^lang\(([\w\-]+)\)$/) {
                 push @parts, "[\@xml:lang='$1' or starts-with(\@xml:lang, '$1-')]";
+            } elsif ($1 =~ /^nth-child\((\d+)\)$/) {
+                push @parts, "[count(preceding-sibling::*) = @{[ $1 - 1 ]}]";
+            } else {
+                Carp::croak "Can't translate '$1' pseudo-class";
             }
         }
 
