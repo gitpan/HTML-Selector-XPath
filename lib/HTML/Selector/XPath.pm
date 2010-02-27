@@ -1,7 +1,8 @@
 package HTML::Selector::XPath;
 
 use strict;
-our $VERSION = '0.03';
+use 5.008_001;
+our $VERSION = '0.04';
 
 require Exporter;
 our @EXPORT_OK = qw(selector_to_xpath);
@@ -113,6 +114,8 @@ sub to_xpath {
         while ($rule =~ s/$reg->{pseudo}//) {
             if ( $1 eq 'first-child') {
                 $parts[$#parts] = '*[1]/self::' . $parts[$#parts];
+            } elsif ( $1 eq 'last-child') {
+                push @parts, '[not(following-sibling::*)]';
             } elsif ($1 =~ /^lang\(([\w\-]+)\)$/) {
                 push @parts, "[\@xml:lang='$1' or starts-with(\@xml:lang, '$1-')]";
             } elsif ($1 =~ /^nth-child\((\d+)\)$/) {
@@ -164,7 +167,7 @@ HTML::Selector::XPath - CSS Selector to XPath compiler
   $selector->to_xpath; # //li[@id='main']
 
   # functional interface
-  use HTML::Selector::Xpath 'selector_to_xpath';
+  use HTML::Selector::XPath 'selector_to_xpath';
   my $xpath = selector_to_xpath('div.foo');
 
 =head1 DESCRIPTION
