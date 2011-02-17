@@ -15,7 +15,7 @@ run {
     $tree->eof;
 
     my @nodes = $tree->findnodes( HTML::Selector::XPath->new($block->selector)->to_xpath );
-    is_deeply [ map $_->as_XML, @nodes ], $block->expected;
+    is_deeply [ map $_->as_XML, @nodes ], $block->expected, $block->selector;
 }
 
 __END__
@@ -155,3 +155,137 @@ p:nth-child(2)
 --- expected
 <p>bar</p>
 
+===
+--- input
+<a href="no">No</a>
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+<a href="bar">bar</a>
+--- selector
+a[@href*="bar"]
+--- expected
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+<a href="bar">bar</a>
+
+===
+--- input
+<a href="no">No</a>
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+<a href="bar">bar</a>
+
+--- selector
+a:not([@href*="bar"])
+--- expected
+<a href="no">No</a>
+
+===
+--- input
+<p>
+<a href="no">No</a>
+<div>Some description</div>
+<a href="foobar">Foobar</a>
+<div>Some description</div>
+<a href="barred">Barred</a>
+<div>Some description</div>
+<a href="bar">bar</a>
+</p>
+--- selector
+p > a:nth-of-type(3)
+--- expected
+<a href="barred">Barred</a>
+
+===
+--- input
+<a href="No">No (no preceding sibling)</a>
+<p>A header</p>
+<a href="Yes">Yes</a>
+<div>Some description</div>
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+<p>
+<a href="No">No (child, not sibling)</a>
+</p>
+--- selector
+p ~ a
+--- expected
+<a href="Yes">Yes</a>
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+
+===
+--- input
+<a href="No">No (no preceding sibling)</a>
+<p>A header</p>
+<a class="foo" href="Yes">Yes</a>
+<div>Some description</div>
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+<p>
+<a class="foo" href="No">No (child, not sibling)</a>
+</p>
+--- selector
+p ~ a.foo
+--- expected
+<a class="foo" href="Yes">Yes</a>
+
+===
+--- input
+<a href="No">No (no preceding sibling)</a>
+<p>A header</p>
+<a class="foo" href="Yes">Yes</a>
+<div>Some description</div>
+<p>
+<div>Another <b>two level deep description</b></div>
+</p>
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+<p>
+<a class="foo" href="No">No (child, not sibling)</a>
+<div>But some description</p>
+</p>
+<div>Some description that is not output</div>
+--- selector
+p *:contains("description")
+--- expected
+<b>two level deep description</b>
+<div>But some description</div>
+
+===
+--- input
+<a href="No">No (no preceding sibling)</a>
+<p>A header</p>
+<a class="foo" href="Yes">Yes</a>
+<div>Some description</div>
+<div>Another <b>two level deep description</b></div>
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+<p>
+<div>Some more description</div>
+<a class="foo" href="No">No (child, not sibling)</a>
+</p>
+<div>Some description that is not output</div>
+--- selector
+p > *:contains("description")
+--- expected
+<div>Some more description</div>
+===
+--- input
+<a href="No">No (no preceding sibling)</a>
+<p>A header</p>
+<a class="foo" href="Yes">Yes</a>
+<div>Some description</div>
+<div>Another <b>two level deep description</b></div>
+<a href="foobar">Foobar</a>
+<a href="barred">Barred</a>
+<p>
+<a class="foo" href="No">No (child, not sibling)</a>
+</p>
+<div>Some more description</div>
+--- selector
+*:contains("description")
+--- expected
+<div>Some description</div>
+<b>two level deep description</b>
+<div>Some more description</div>

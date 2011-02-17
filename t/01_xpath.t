@@ -38,6 +38,12 @@ E > F
 
 ===
 --- selector
+p.pastoral.marine
+--- xpath
+//p[contains(concat(' ', @class, ' '), ' pastoral ')][contains(concat(' ', @class, ' '), ' marine ')]
+
+===
+--- selector
 E:first-child
 --- xpath
 //*[1]/self::E
@@ -145,3 +151,243 @@ F > E:last-child
 --- xpath
 //F/E[not(following-sibling::*)]
 
+===
+--- selector
+E[@href*="bar"]
+--- xpath
+//E[contains(@href, 'bar')]
+
+===
+--- selector
+E:not([@href*="bar"])
+--- xpath
+//E[not(contains(@href, 'bar'))]
+
+===
+--- selector
+F > E:nth-of-type(3)
+--- xpath
+//F/E[3]
+
+===
+--- selector
+E ~ F
+--- xpath
+//E/following-sibling::F
+
+===
+--- selector
+E ~ F.foo
+--- xpath
+//E/following-sibling::F[contains(concat(' ', @class, ' '), ' foo ')]
+
+===
+--- selector
+E:contains("Hello")
+--- xpath
+//E[text()[contains(string(.),"Hello")]]
+
+===
+--- selector
+E:contains( "Hello" )
+--- xpath
+//E[text()[contains(string(.),"Hello")]]
+===
+--- selector
+E ~ F
+--- xpath
+//E/following-sibling::F
+
+===
+--- selector
+E ~ #bar
+--- xpath
+//E/following-sibling::*[@id='bar']
+
+===
+--- selector
+E ~ .bar
+--- xpath
+//E/following-sibling::*[contains(concat(' ', @class, ' '), ' bar ')]
+
+===
+--- selector
+E ~ *
+--- xpath
+//E/following-sibling::*
+
+===
+--- selector
+.foo ~ E
+--- xpath
+//*[contains(concat(' ', @class, ' '), ' foo ')]/following-sibling::E
+
+===
+--- selector
+.foo ~ *
+--- xpath
+//*[contains(concat(' ', @class, ' '), ' foo ')]/following-sibling::*
+
+===
+--- selector
+.foo ~ .bar
+--- xpath
+//*[contains(concat(' ', @class, ' '), ' foo ')]/following-sibling::*[contains(concat(' ', @class, ' '), ' bar ')]
+
+===
+--- selector
+> em
+--- xpath
+//*/em
+
+===
+--- selector
+:first-child
+--- xpath
+//*[1]/self::*
+
+===
+--- selector
+E.c:first-child
+--- xpath
+//*[1]/self::E[contains(concat(' ', @class, ' '), ' c ')]
+
+===
+--- selector
+E:first-child.c
+--- xpath
+//*[1]/self::E[contains(concat(' ', @class, ' '), ' c ')]
+
+===
+--- selector
+E#i:first-child
+--- xpath
+//*[1]/self::E[@id='i']
+
+===
+--- selector
+E:first-child#i
+--- xpath
+//*[1]/self::E[@id='i']
+
+===
+--- selector
+:lang(c)
+--- xpath
+//*[@xml:lang='c' or starts-with(@xml:lang, 'c-')]
+
+===
+--- selector
+:lang(c)#i
+--- xpath
+//*[@xml:lang='c' or starts-with(@xml:lang, 'c-')][@id='i']
+
+===
+--- selector
+#i:lang(c)
+--- xpath
+//*[@id='i'][@xml:lang='c' or starts-with(@xml:lang, 'c-')]
+
+===
+--- selector
+*:lang(c)#i
+--- xpath
+//*[@xml:lang='c' or starts-with(@xml:lang, 'c-')][@id='i']
+
+===
+--- selector
+E:lang(c)#i
+--- xpath
+//E[@xml:lang='c' or starts-with(@xml:lang, 'c-')][@id='i']
+
+===
+--- selector
+E#i:lang(c)
+--- xpath
+//E[@id='i'][@xml:lang='c' or starts-with(@xml:lang, 'c-')]
+
+===
+--- selector
+*:lang(c)#i:first-child
+--- xpath
+//*[1]/self::*[@xml:lang='c' or starts-with(@xml:lang, 'c-')][@id='i']
+
+===
+--- selector
+E:lang(c)#i:first-child
+--- xpath
+//*[1]/self::E[@xml:lang='c' or starts-with(@xml:lang, 'c-')][@id='i']
+
+===
+--- selector
+E:lang(c):first-child#i
+--- xpath
+//*[1]/self::E[@xml:lang='c' or starts-with(@xml:lang, 'c-')][@id='i']
+
+===
+--- selector
+E#i:lang(c):first-child
+--- xpath
+//*[1]/self::E[@id='i'][@xml:lang='c' or starts-with(@xml:lang, 'c-')]
+
+===
+--- selector
+#bar
+--- xpath
+//*[@id='bar']
+
+===
+--- selector
+*#bar
+--- xpath
+//*[@id='bar']
+
+===
+--- selector
+*[foo]
+--- xpath
+//*[@foo]
+
+===
+--- selector
+[foo]
+--- xpath
+//*[@foo]
+
+
+===
+--- selector
+.warning
+--- xpath
+//*[contains(concat(' ', @class, ' '), ' warning ')]
+
+===
+--- selector
+*.warning
+--- xpath
+//*[contains(concat(' ', @class, ' '), ' warning ')]
+
+ 
+===
+--- selector
+:nth-child(1)
+--- xpath
+//*[count(preceding-sibling::*) = 0]
+
+===
+--- selector
+*:nth-child(1)
+--- xpath
+//*[count(preceding-sibling::*) = 0]
+
+===
+--- selector
+E:nth-child(1)
+--- xpath
+//E[count(preceding-sibling::*) = 0]
+
+===
+--- selector
+E:nth-child(2)
+--- xpath
+//E[count(preceding-sibling::*) = 1]
