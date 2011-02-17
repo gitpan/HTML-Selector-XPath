@@ -104,6 +104,24 @@ E[foo~="warning"]
 
 ===
 --- selector
+E[foo^="warning"]
+--- xpath
+//E[starts-with(@foo,'warning')]
+
+===
+--- selector
+E:not([foo^="warning"])
+--- xpath
+//E[not(starts-with(@foo,'warning'))]
+
+===
+--- selector
+E[foo$="warning"]
+--- xpath
+//E[ends-with(@foo,'warning')]
+
+===
+--- selector
 E[lang|="en"]
 --- xpath
 //E[@lang='en' or starts-with(@lang, 'en-')]
@@ -391,3 +409,26 @@ E:nth-child(1)
 E:nth-child(2)
 --- xpath
 //E[count(preceding-sibling::*) = 1]
+
+===
+--- selector
+:root
+--- xpath
+/*
+
+===
+--- selector
+E:root
+--- xpath
+/E
+
+===
+--- selector
+E:empty
+--- xpath
+//E[not(* or text())]
+===
+--- selector
+:empty
+--- xpath
+//*[not(* or text())]

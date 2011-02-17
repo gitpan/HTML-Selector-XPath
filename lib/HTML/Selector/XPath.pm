@@ -2,7 +2,7 @@ package HTML::Selector::XPath;
 
 use strict;
 use 5.008_001;
-our $VERSION = '0.05';
+our $VERSION = '0.06';
 
 require Exporter;
 our @EXPORT_OK = qw(selector_to_xpath);
@@ -11,7 +11,7 @@ our @EXPORT_OK = qw(selector_to_xpath);
 use Carp;
 
 sub selector_to_xpath {
-    __PACKAGE__->new(shift)->to_xpath;
+    __PACKAGE__->new(shift)->to_xpath(@_);
 }
 
 my $reg = {
@@ -20,7 +20,7 @@ my $reg = {
     # attribute presence
     attr1   => qr/^\[([^\]]*)\]/,
     # attribute value match
-    attr2   => qr/^\[\s*([^*~\|=\s:]+)\s*([~\|*]?=)\s*"([^"]+)"\s*\]/i,
+    attr2   => qr/^\[\s*([^*~\|=\s:^\$]+)\s*([~\|*^\$]?=)\s*"([^"]+)"\s*\]/i,
     attrN   => qr/^:not\((.*?)\)/i,
     pseudo  => qr/^:([()a-z0-9_-]+)/i,
     # adjacency/direct descendance
@@ -41,11 +41,33 @@ sub selector {
     $self->{expression};
 }
 
+sub convert_attribute_match {
+    my ($left,$op,$right) = @_;
+    # negation (e.g. [input!="text"]) isn't implemented in CSS, but include it anyway:
+    if ($op eq '!=') {
+        "\@$left!='$right";
+    } elsif ($op eq '~=') { # substring attribute match
+        "contains(concat(' ', \@$left, ' '), ' $right ')";
+    } elsif ($op eq '*=') { # real substring attribute match
+        "contains($left, '$right')";
+    } elsif ($op eq '|=') {
+        "\@$left='$right' or starts-with(\@$left, '$right-')";
+    } elsif ($op eq '^=') {
+        "starts-with(\@$left,'$3')";
+    } elsif ($op eq '$=') {
+        "ends-with(\@$left,'$3')";
+    } else { # exact match
+        "\@$left='$3'";
+    }
+};
+
 sub to_xpath {
     my $self = shift;
     my $rule = $self->{expression} or return;
+    my %parms = @_;
+    my $root = $parms{root} || '/';
 
-    my @parts = ("//");
+    my @parts = ("$root/");
     my $last_rule = '';
     my @next_parts;
 
@@ -95,18 +117,7 @@ sub to_xpath {
 
         # Match attribute selectors
         if ($rule =~ s/$reg->{attr2}//) {
-            # negation (e.g. [input!="text"]) isn't implemented in CSS, but include it anyway:
-            if ($2 eq '!=') {
-                push @parts, "[\@$1!='$3]";
-            } elsif ($2 eq '~=') { # substring attribute match
-                push @parts, "[contains(concat(' ', \@$1, ' '), ' $3 ')]";
-            } elsif ($2 eq '*=') { # real substring attribute match
-                push @parts, "[contains($1, '$3')]";
-            } elsif ($2 eq '|=') {
-                push @parts, "[\@$1='$3' or starts-with(\@$1, '$3-')]";
-            } else { # exact match
-                push @parts, "[\@$1='$3']";
-            }
+            push @parts, "[", convert_attribute_match( $1, $2, $3 ), "]";
         } elsif ($rule =~ s/$reg->{attr1}//) {
             # If we have no tag output yet, write the tag:
             if (! $wrote_tag++) {
@@ -120,15 +131,7 @@ sub to_xpath {
         if ($rule =~ s/$reg->{attrN}//) {
             my $sub_rule = $1;
             if ($sub_rule =~ s/$reg->{attr2}//) {
-                if ($2 eq '=') {
-                    push @parts, "[\@$1!='$3']";
-                } elsif ($2 eq '~=') {
-                    push @parts, "[not(contains(concat(' ', \@$1, ' '), ' $3 '))]";
-                } elsif ($2 eq '*=') {
-                    push @parts, "[not(contains($1, '$3'))]";
-                } elsif ($2 eq '|=') {
-                    push @parts, "[not(\@$1='$3' or starts-with(\@$1, '$3-'))]";
-                }
+                push @parts, "[not(", convert_attribute_match( $1, $2, $3 ), ")]";
             } elsif ($sub_rule =~ s/$reg->{attr1}//) {
                 push @parts, "[not(\@$1)]";
             } else {
@@ -157,6 +160,11 @@ sub to_xpath {
                 $rule =~ s/^\s*"([^"]*)"\s*\)\s*$//
                     or die "Malformed string in :contains(): '$rule'";
                 push @parts, qq{[text()[contains(string(.),"$1")]]};
+            } elsif ( $1 eq 'root') {
+                # This will give surprising results if you do E > F:root
+                $parts[0] = "/";
+            } elsif ( $1 eq 'empty') {
+                push @parts, "[not(* or text())]";
             } else {
                 Carp::croak "Can't translate '$1' pseudo-class";
             }
@@ -170,10 +178,8 @@ sub to_xpath {
             } elsif ($match =~ /\+/) {
                 push @parts, "/following-sibling::*[1]/self::";
                 $tag_index = $#parts;
-                #@next_parts = ('*[1]/self::');
             } elsif ($match =~ /\~/) {
                 push @parts, "/following-sibling::";
-                #@next_parts = ('*[1]/self::');
             } else {
                 push @parts, "//";
             }
@@ -185,7 +191,7 @@ sub to_xpath {
 
         # Match commas
         if ($rule =~ s/$reg->{comma}//) {
-            push @parts, " | ", "//", ; # ending one rule and beginning another
+            push @parts, " | ", "$root/"; # ending one rule and beginning another
             undef $tag;
             undef $wrote_tag;
         }
@@ -211,10 +217,40 @@ HTML::Selector::XPath - CSS Selector to XPath compiler
   use HTML::Selector::XPath 'selector_to_xpath';
   my $xpath = selector_to_xpath('div.foo');
 
+  my $relative = selector_to_xpath('div.foo', root => '/html/body/p' );
+  # /html/body/p/div[contains(concat(' ', @class, ' '), ' foo ')]
+
 =head1 DESCRIPTION
 
 HTML::Selector::XPath is a utility function to compile full set of
 CSS2 and partial CSS3 selectors to the equivalent XPath expression.
+
+=head1 FUNCTIONS and METHODS
+
+=over 4
+
+=item selector_to_xpath
+
+  $xpath = selector_to_xpath($selector);
+
+Shortcut for C<< HTML::Selector->new(shift)->to_xpath(@_) >>. Exported upon request.
+
+=item new
+
+  $sel = HTML::Selector::XPath->new($selector);
+
+Creates a new object.
+
+=item to_xpath
+
+  $xpath = $sel->to_xpath;
+  $xpath = $sel->to_xpath(root => "."); # ./foo instead of //foo
+
+Returns the translated XPath expression. You can optionally pass
+C<root> parameter, to specify which root to start the expression. It
+defaults to C</>.
+
+=back
 
 =head1 CAVEATS
 
