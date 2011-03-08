@@ -2,7 +2,7 @@ package HTML::Selector::XPath;
 
 use strict;
 use 5.008_001;
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 require Exporter;
 our @EXPORT_OK = qw(selector_to_xpath);
@@ -265,11 +265,17 @@ is an invalid CSS selector (class names should not begin with
 numbers), but this module ignores that and tries to generate
 an equivalent XPath expression anyway.
 
+=head1 COPYRIGHT
+
+Tatsuhiko Miyagawa 2006-2011
+
+Max Maischein 2011-
+
 =head1 AUTHOR
 
 Tatsuhiko Miyagawa E<lt>miyagawa@bulknews.netE<gt>
 
-Most of the code is based on Joe Hewitt's getElementsBySelector.js on
+Most of the logic is based on Joe Hewitt's getElementsBySelector.js on
 L<http://www.joehewitt.com/blog/2006-03-20.php> and Andrew Dupont's
 patch to Prototype.js on L<http://dev.rubyonrails.org/ticket/5171>,
 but slightly modified using Aristotle Pegaltzis' CSS to XPath
