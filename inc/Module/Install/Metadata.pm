@@ -2,23 +2,25 @@
 package Module::Install::Metadata;
 
 use strict 'vars';
-use Module::Install::Base ();
+use Module::Install::Base;
 
 use vars qw{$VERSION @ISA $ISCORE};
 BEGIN {
-	$VERSION = '1.01';
-	@ISA     = 'Module::Install::Base';
+	$VERSION = '0.81';
+	@ISA     = qw{Module::Install::Base};
 	$ISCORE  = 1;
 }
 
 my @boolean_keys = qw{
 	sign
+	mymeta
 };
 
 my @scalar_keys = qw{
 	name
 	module_name
 	abstract
+	author
 	version
 	distribution_type
 	tests
@@ -42,10 +44,7 @@ my @resource_keys = qw{
 
 my @array_keys = qw{
 	keywords
-	author
 };
-
-*authors = \&author;
 
 sub Meta              { shift          }
 sub Meta_BooleanKeys  { @boolean_keys  }
@@ -178,6 +177,43 @@ sub perl_version {
 	$self->{values}->{perl_version} = $version;
 }
 
+#Stolen from M::B
+my %license_urls = (
+    perl         => 'http://dev.perl.org/licenses/',
+    apache       => 'http://apache.org/licenses/LICENSE-2.0',
+    artistic     => 'http://opensource.org/licenses/artistic-license.php',
+    artistic_2   => 'http://opensource.org/licenses/artistic-license-2.0.php',
+    lgpl         => 'http://opensource.org/licenses/lgpl-license.php',
+    lgpl2        => 'http://opensource.org/licenses/lgpl-2.1.php',
+    lgpl3        => 'http://opensource.org/licenses/lgpl-3.0.html',
+    bsd          => 'http://opensource.org/licenses/bsd-license.php',
+    gpl          => 'http://opensource.org/licenses/gpl-license.php',
+    gpl2         => 'http://opensource.org/licenses/gpl-2.0.php',
+    gpl3         => 'http://opensource.org/licenses/gpl-3.0.html',
+    mit          => 'http://opensource.org/licenses/mit-license.php',
+    mozilla      => 'http://opensource.org/licenses/mozilla1.1.php',
+    open_source  => undef,
+    unrestricted => undef,
+    restrictive  => undef,
+    unknown      => undef,
+);
+
+sub license {
+	my $self = shift;
+	return $self->{values}->{license} unless @_;
+	my $license = shift or die(
+		'Did not provide a value to license()'
+	);
+	$self->{values}->{license} = $license;
+
+	# Automatically fill in license URLs
+	if ( $license_urls{$license} ) {
+		$self->resources( license => $license_urls{$license} );
+	}
+
+	return 1;
+}
+
 sub all_from {
 	my ( $self, $file ) = @_;
 
@@ -195,8 +231,6 @@ sub all_from {
 		die("The path '$file' does not exist, or is not a file");
 	}
 
-	$self->{values}{all_from} = $file;
-
 	# Some methods pull from POD instead of code.
 	# If there is a matching .pod, use that instead
 	my $pod = $file;
@@ -207,7 +241,7 @@ sub all_from {
 	$self->name_from($file)         unless $self->name;
 	$self->version_from($file)      unless $self->version;
 	$self->perl_version_from($file) unless $self->perl_version;
-	$self->author_from($pod)        unless @{$self->author || []};
+	$self->author_from($pod)        unless $self->author;
 	$self->license_from($pod)       unless $self->license;
 	$self->abstract_from($pod)      unless $self->abstract;
 
@@ -317,9 +351,6 @@ sub version_from {
 	require ExtUtils::MM_Unix;
 	my ( $self, $file ) = @_;
 	$self->version( ExtUtils::MM_Unix->parse_version($file) );
-
-	# for version integrity check
-	$self->makemaker_args( VERSION_FROM => $file );
 }
 
 sub abstract_from {
@@ -330,7 +361,7 @@ sub abstract_from {
 			{ DISTNAME => $self->name },
 			'ExtUtils::MM_Unix'
 		)->parse_abstract($file)
-	);
+	 );
 }
 
 # Add both distribution and module name
@@ -355,10 +386,11 @@ sub name_from {
 	}
 }
 
-sub _extract_perl_version {
+sub perl_version_from {
+	my $self = shift;
 	if (
-		$_[0] =~ m/
-		^\s*
+		Module::Install::_read($_[0]) =~ m/
+		^
 		(?:use|require) \s*
 		v?
 		([\d_\.]+)
@@ -367,16 +399,6 @@ sub _extract_perl_version {
 	) {
 		my $perl_version = $1;
 		$perl_version =~ s{_}{}g;
-		return $perl_version;
-	} else {
-		return;
-	}
-}
-
-sub perl_version_from {
-	my $self = shift;
-	my $perl_version=_extract_perl_version(Module::Install::_read($_[0]));
-	if ($perl_version) {
 		$self->perl_version($perl_version);
 	} else {
 		warn "Cannot determine perl version info from $_[0]\n";
@@ -396,165 +418,59 @@ sub author_from {
 		([^\n]*)
 	/ixms) {
 		my $author = $1 || $2;
-
-		# XXX: ugly but should work anyway...
-		if (eval "require Pod::Escapes; 1") {
-			# Pod::Escapes has a mapping table.
-			# It's in core of perl >= 5.9.3, and should be installed
-			# as one of the Pod::Simple's prereqs, which is a prereq
-			# of Pod::Text 3.x (see also below).
-			$author =~ s{ E<( (\d+) | ([A-Za-z]+) )> }
-			{
-				defined $2
-				? chr($2)
-				: defined $Pod::Escapes::Name2character_number{$1}
-				? chr($Pod::Escapes::Name2character_number{$1})
-				: do {
-					warn "Unknown escape: E<$1>";
-					"E<$1>";
-				};
-			}gex;
-		}
-		elsif (eval "require Pod::Text; 1" && $Pod::Text::VERSION < 3) {
-			# Pod::Text < 3.0 has yet another mapping table,
-			# though the table name of 2.x and 1.x are different.
-			# (1.x is in core of Perl < 5.6, 2.x is in core of
-			# Perl < 5.9.3)
-			my $mapping = ($Pod::Text::VERSION < 2)
-				? \%Pod::Text::HTML_Escapes
-				: \%Pod::Text::ESCAPES;
-			$author =~ s{ E<( (\d+) | ([A-Za-z]+) )> }
-			{
-				defined $2
-				? chr($2)
-				: defined $mapping->{$1}
-				? $mapping->{$1}
-				: do {
-					warn "Unknown escape: E<$1>";
-					"E<$1>";
-				};
-			}gex;
-		}
-		else {
-			$author =~ s{E<lt>}{<}g;
-			$author =~ s{E<gt>}{>}g;
-		}
+		$author =~ s{E<lt>}{<}g;
+		$author =~ s{E<gt>}{>}g;
 		$self->author($author);
 	} else {
 		warn "Cannot determine author info from $_[0]\n";
 	}
 }
 
-#Stolen from M::B
-my %license_urls = (
-    perl         => 'http://dev.perl.org/licenses/',
-    apache       => 'http://apache.org/licenses/LICENSE-2.0',
-    apache_1_1   => 'http://apache.org/licenses/LICENSE-1.1',
-    artistic     => 'http://opensource.org/licenses/artistic-license.php',
-    artistic_2   => 'http://opensource.org/licenses/artistic-license-2.0.php',
-    lgpl         => 'http://opensource.org/licenses/lgpl-license.php',
-    lgpl2        => 'http://opensource.org/licenses/lgpl-2.1.php',
-    lgpl3        => 'http://opensource.org/licenses/lgpl-3.0.html',
-    bsd          => 'http://opensource.org/licenses/bsd-license.php',
-    gpl          => 'http://opensource.org/licenses/gpl-license.php',
-    gpl2         => 'http://opensource.org/licenses/gpl-2.0.php',
-    gpl3         => 'http://opensource.org/licenses/gpl-3.0.html',
-    mit          => 'http://opensource.org/licenses/mit-license.php',
-    mozilla      => 'http://opensource.org/licenses/mozilla1.1.php',
-    open_source  => undef,
-    unrestricted => undef,
-    restrictive  => undef,
-    unknown      => undef,
-);
-
-sub license {
-	my $self = shift;
-	return $self->{values}->{license} unless @_;
-	my $license = shift or die(
-		'Did not provide a value to license()'
-	);
-	$license = __extract_license($license) || lc $license;
-	$self->{values}->{license} = $license;
-
-	# Automatically fill in license URLs
-	if ( $license_urls{$license} ) {
-		$self->resources( license => $license_urls{$license} );
-	}
-
-	return 1;
-}
-
-sub _extract_license {
-	my $pod = shift;
-	my $matched;
-	return __extract_license(
-		($matched) = $pod =~ m/
-			(=head \d \s+ L(?i:ICEN[CS]E|ICENSING)\b.*?)
-			(=head \d.*|=cut.*|)\z
-		/xms
-	) || __extract_license(
-		($matched) = $pod =~ m/
-			(=head \d \s+ (?:C(?i:OPYRIGHTS?)|L(?i:EGAL))\b.*?)
-			(=head \d.*|=cut.*|)\z
-		/xms
-	);
-}
-
-sub __extract_license {
-	my $license_text = shift or return;
-	my @phrases      = (
-		'(?:under )?the same (?:terms|license) as (?:perl|the perl (?:\d )?programming language)' => 'perl', 1,
-		'(?:under )?the terms of (?:perl|the perl programming language) itself' => 'perl', 1,
-		'Artistic and GPL'                   => 'perl',         1,
-		'GNU general public license'         => 'gpl',          1,
-		'GNU public license'                 => 'gpl',          1,
-		'GNU lesser general public license'  => 'lgpl',         1,
-		'GNU lesser public license'          => 'lgpl',         1,
-		'GNU library general public license' => 'lgpl',         1,
-		'GNU library public license'         => 'lgpl',         1,
-		'GNU Free Documentation license'     => 'unrestricted', 1,
-		'GNU Affero General Public License'  => 'open_source',  1,
-		'(?:Free)?BSD license'               => 'bsd',          1,
-		'Artistic license 2\.0'              => 'artistic_2',   1,
-		'Artistic license'                   => 'artistic',     1,
-		'Apache (?:Software )?license'       => 'apache',       1,
-		'GPL'                                => 'gpl',          1,
-		'LGPL'                               => 'lgpl',         1,
-		'BSD'                                => 'bsd',          1,
-		'Artistic'                           => 'artistic',     1,
-		'MIT'                                => 'mit',          1,
-		'Mozilla Public License'             => 'mozilla',      1,
-		'Q Public License'                   => 'open_source',  1,
-		'OpenSSL License'                    => 'unrestricted', 1,
-		'SSLeay License'                     => 'unrestricted', 1,
-		'zlib License'                       => 'open_source',  1,
-		'proprietary'                        => 'proprietary',  0,
-	);
-	while ( my ($pattern, $license, $osi) = splice(@phrases, 0, 3) ) {
-		$pattern =~ s#\s+#\\s+#gs;
-		if ( $license_text =~ /\b$pattern\b/i ) {
-			return $license;
-		}
-	}
-	return '';
-}
-
 sub license_from {
 	my $self = shift;
-	if (my $license=_extract_license(Module::Install::_read($_[0]))) {
-		$self->license($license);
-	} else {
-		warn "Cannot determine license info from $_[0]\n";
-		return 'unknown';
+	if (
+		Module::Install::_read($_[0]) =~ m/
+		(
+			=head \d \s+
+			(?:licen[cs]e|licensing|copyright|legal)\b
+			.*?
+		)
+		(=head\\d.*|=cut.*|)
+		\z
+	/ixms ) {
+		my $license_text = $1;
+		my @phrases      = (
+			'under the same (?:terms|license) as perl itself' => 'perl',        1,
+			'GNU general public license'                      => 'gpl',         1,
+			'GNU public license'                              => 'gpl',         1,
+			'GNU lesser general public license'               => 'lgpl',        1,
+			'GNU lesser public license'                       => 'lgpl',        1,
+			'GNU library general public license'              => 'lgpl',        1,
+			'GNU library public license'                      => 'lgpl',        1,
+			'BSD license'                                     => 'bsd',         1,
+			'Artistic license'                                => 'artistic',    1,
+			'GPL'                                             => 'gpl',         1,
+			'LGPL'                                            => 'lgpl',        1,
+			'BSD'                                             => 'bsd',         1,
+			'Artistic'                                        => 'artistic',    1,
+			'MIT'                                             => 'mit',         1,
+			'proprietary'                                     => 'proprietary', 0,
+		);
+		while ( my ($pattern, $license, $osi) = splice(@phrases, 0, 3) ) {
+			$pattern =~ s{\s+}{\\s+}g;
+			if ( $license_text =~ /\b$pattern\b/i ) {
+				$self->license($license);
+				return 1;
+			}
+		}
 	}
+
+	warn "Cannot determine license info from $_[0]\n";
+	return 'unknown';
 }
 
 sub _extract_bugtracker {
-	my @links   = $_[0] =~ m#L<(
-	 https?\Q://rt.cpan.org/\E[^>]+|
-	 https?\Q://github.com/\E[\w_]+/[\w_]+/issues|
-	 https?\Q://code.google.com/p/\E[\w_\-]+/issues/list
-	 )>#gx;
+	my @links   = $_[0] =~ m#L<(\Qhttp://rt.cpan.org/\E[^>]+)>#g;
 	my %links;
 	@links{@links}=();
 	@links=keys %links;
@@ -570,7 +486,7 @@ sub bugtracker_from {
 		return 0;
 	}
 	if ( @links > 1 ) {
-		warn "Found more than one bugtracker link in $_[0]\n";
+		warn "Found more than on rt.cpan.org link in $_[0]\n";
 		return 0;
 	}
 
@@ -590,95 +506,41 @@ sub requires_from {
 	}
 }
 
-sub test_requires_from {
-	my $self     = shift;
-	my $content  = Module::Install::_readperl($_[0]);
-	my @requires = $content =~ m/^use\s+([^\W\d]\w*(?:::\w+)*)\s+([\d\.]+)/mg;
-	while ( @requires ) {
-		my $module  = shift @requires;
-		my $version = shift @requires;
-		$self->test_requires( $module => $version );
-	}
-}
-
 # Convert triple-part versions (eg, 5.6.1 or 5.8.9) to
 # numbers (eg, 5.006001 or 5.008009).
 # Also, convert double-part versions (eg, 5.8)
 sub _perl_version {
 	my $v = $_[-1];
-	$v =~ s/^([1-9])\.([1-9]\d?\d?)$/sprintf("%d.%03d",$1,$2)/e;
+	$v =~ s/^([1-9])\.([1-9]\d?\d?)$/sprintf("%d.%03d",$1,$2)/e;	
 	$v =~ s/^([1-9])\.([1-9]\d?\d?)\.(0|[1-9]\d?\d?)$/sprintf("%d.%03d%03d",$1,$2,$3 || 0)/e;
 	$v =~ s/(\.\d\d\d)000$/$1/;
 	$v =~ s/_.+$//;
 	if ( ref($v) ) {
-		# Numify
-		$v = $v + 0;
+		$v = $v + 0; # Numify
 	}
 	return $v;
 }
 
-sub add_metadata {
-    my $self = shift;
-    my %hash = @_;
-    for my $key (keys %hash) {
-        warn "add_metadata: $key is not prefixed with 'x_'.\n" .
-             "Use appopriate function to add non-private metadata.\n" unless $key =~ /^x_/;
-        $self->{values}->{$key} = $hash{$key};
-    }
-}
+
+
 
 
 ######################################################################
-# MYMETA Support
+# MYMETA.yml Support
 
 sub WriteMyMeta {
 	die "WriteMyMeta has been deprecated";
 }
 
-sub write_mymeta_yaml {
+sub write_mymeta {
 	my $self = shift;
+	
+	# If there's no existing META.yml there is nothing we can do
+	return unless -f 'META.yml';
 
 	# We need YAML::Tiny to write the MYMETA.yml file
 	unless ( eval { require YAML::Tiny; 1; } ) {
 		return 1;
-	}
-
-	# Generate the data
-	my $meta = $self->_write_mymeta_data or return 1;
-
-	# Save as the MYMETA.yml file
-	print "Writing MYMETA.yml\n";
-	YAML::Tiny::DumpFile('MYMETA.yml', $meta);
-}
-
-sub write_mymeta_json {
-	my $self = shift;
-
-	# We need JSON to write the MYMETA.json file
-	unless ( eval { require JSON; 1; } ) {
-		return 1;
-	}
-
-	# Generate the data
-	my $meta = $self->_write_mymeta_data or return 1;
-
-	# Save as the MYMETA.yml file
-	print "Writing MYMETA.json\n";
-	Module::Install::_write(
-		'MYMETA.json',
-		JSON->new->pretty(1)->canonical->encode($meta),
-	);
-}
-
-sub _write_mymeta_data {
-	my $self = shift;
-
-	# If there's no existing META.yml there is nothing we can do
-	return undef unless -f 'META.yml';
-
-	# We need Parse::CPAN::Meta to load the file
-	unless ( eval { require Parse::CPAN::Meta; 1; } ) {
-		return undef;
 	}
 
 	# Merge the perl version into the dependencies
@@ -696,7 +558,7 @@ sub _write_mymeta_data {
 	}
 
 	# Load the advisory META.yml file
-	my @yaml = Parse::CPAN::Meta::LoadFile('META.yml');
+	my @yaml = YAML::Tiny::LoadFile('META.yml');
 	my $meta = $yaml[0];
 
 	# Overwrite the non-configure dependency hashs
@@ -710,7 +572,9 @@ sub _write_mymeta_data {
 		$meta->{build_requires} = { map { @$_ } @{ $val->{build_requires} } };
 	}
 
-	return $meta;
+	# Save as the MYMETA.yml file
+	print "Writing MYMETA.yml\n";
+	YAML::Tiny::DumpFile('MYMETA.yml', $meta);	
 }
 
 1;

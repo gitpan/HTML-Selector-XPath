@@ -2,11 +2,11 @@
 package Module::Install::WriteAll;
 
 use strict;
-use Module::Install::Base ();
+use Module::Install::Base;
 
 use vars qw{$VERSION @ISA $ISCORE};
 BEGIN {
-	$VERSION = '1.01';
+	$VERSION = '0.81';
 	@ISA     = qw{Module::Install::Base};
 	$ISCORE  = 1;
 }
@@ -26,10 +26,7 @@ sub WriteAll {
 
 	$self->check_nmake if $args{check_nmake};
 	unless ( $self->makemaker_args->{PL_FILES} ) {
-		# XXX: This still may be a bit over-defensive...
-		unless ($self->makemaker(6.25)) {
-			$self->makemaker_args( PL_FILES => {} ) if -f 'Build.PL';
-		}
+		$self->makemaker_args( PL_FILES => {} );
 	}
 
 	# Until ExtUtils::MakeMaker support MYMETA.yml, make sure
@@ -44,18 +41,8 @@ sub WriteAll {
 
 	# The Makefile write process adds a couple of dependencies,
 	# so write the META.yml files after the Makefile.
-	if ( $args{meta} ) {
-		$self->Meta->write;
-	}
-
-	# Experimental support for MYMETA
-	if ( $ENV{X_MYMETA} ) {
-		if ( $ENV{X_MYMETA} eq 'JSON' ) {
-			$self->Meta->write_mymeta_json;
-		} else {
-			$self->Meta->write_mymeta_yaml;
-		}
-	}
+	$self->Meta->write        if $args{meta};
+	$self->Meta->write_mymeta if $self->mymeta;
 
 	return 1;
 }
