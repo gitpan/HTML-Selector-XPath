@@ -164,13 +164,13 @@ E:not([foo^=warning])
 --- selector
 E[foo$="warning"]
 --- xpath
-//E[ends-with(@foo,'warning')]
+//E[substring(@foo,string-length(@foo)-6)='warning']
 
 ===
 --- selector
 E[foo$=warning]
 --- xpath
-//E[ends-with(@foo,'warning')]
+//E[substring(@foo,string-length(@foo)-6)='warning']
 
 ===
 --- selector
@@ -511,6 +511,28 @@ E:nth-child(2)
 
 ===
 --- selector
+E:nth-child(even)
+--- xpath
+//E[not((count(preceding-sibling::*)+1)<0) and ((count(preceding-sibling::*) + 1) - 0) mod 2 = 0 and parent::*]
+===
+--- selector
+E:nth-child(odd)
+--- xpath
+//E[not((count(preceding-sibling::*)+1)<1) and ((count(preceding-sibling::*) + 1) - 1) mod 2 = 0 and parent::*]
+
+===
+--- selector
+E:nth-child(2n)
+--- xpath
+//E[not((count(preceding-sibling::*)+1)<0) and ((count(preceding-sibling::*) + 1) - 0) mod 2 = 0 and parent::*]
+===
+--- selector
+E:nth-child(2n+1)
+--- xpath
+//E[not((count(preceding-sibling::*)+1)<1) and ((count(preceding-sibling::*) + 1) - 1) mod 2 = 0 and parent::*]
+
+===
+--- selector
 :root
 --- xpath
 /*
@@ -548,6 +570,11 @@ p , q
 div *:not(p) em
 --- xpath
 //div//*[not(self::p)]//em
+===
+--- selector
+a:not(.external)[href]
+--- xpath
+//a[not(self::*[contains(concat(' ', normalize-space(@class), ' '), ' external ')])][@href]
 ===
 --- selector
 div em:only-child

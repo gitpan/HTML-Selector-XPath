@@ -2,7 +2,7 @@ package HTML::Selector::XPath;
 
 use strict;
 use 5.008_001;
-our $VERSION = '0.17';
+our $VERSION = '0.18';
 
 require Exporter;
 our @EXPORT_OK = qw(selector_to_xpath);
@@ -36,7 +36,6 @@ my $reg = {
     comma => qr/^\s*,\s*/i,
 };
 
-
 sub new {
     my($class, $exp) = @_;
     bless { expression => $exp }, $class;
@@ -62,11 +61,12 @@ sub convert_attribute_match {
     } elsif ($op eq '^=') {
         "starts-with(\@$left,'$^N')";
     } elsif ($op eq '$=') {
-        "ends-with(\@$left,'$^N')";
+        my $n = length($^N) - 1;
+        "substring(\@$left,string-length(\@$left)-$n)='$^N'";
     } else { # exact match
         "\@$left='$^N'";
     }
-};
+}
 
 sub _generate_child {
     my ($direction,$a,$b) = @_;
@@ -78,24 +78,24 @@ sub _generate_child {
     } else { # -an + $b
         $a = -$a;
         return "[not((count($direction-sibling::*)+1)>$b) and (($b - (count($direction-sibling::*) + 1)) mod $a) = 0 and parent::*]"
-    };
-};
+    }
+}
 
 sub nth_child {
     my ($a,$b) = @_;
     if (@_ == 1) {
         ($a,$b) = (0,$a);
-    };
+    }
     _generate_child('preceding', $a, $b);
-};
+}
 
 sub nth_last_child {
     my ($a,$b) = @_;
     if (@_ == 1) {
         ($a,$b) = (0,$a);
-    };
+    }
     _generate_child('following', $a, $b);
-};
+}
 
 sub to_xpath {
     my $self = shift;
@@ -107,9 +107,7 @@ sub to_xpath {
     my $last_rule = '';
     my @next_parts;
 
-    my $tag;
     my $wrote_tag;
-    my $tag_index;
     my $root_index = 0; # points to the current root
     # Loop through each "unit" of the rule
     while (length $rule && $rule ne $last_rule) {
@@ -122,7 +120,7 @@ sub to_xpath {
         # (that is, if we start with a combinator)
         if ($rule =~ /$reg->{combinator}/) {
             $rule = "* $rule";
-        };
+        }
 
         # Match elements
         if ($rule =~ s/$reg->{element}//) {
@@ -134,11 +132,7 @@ sub to_xpath {
                 @next_parts = ();
             }
 
-            if ($id_class eq '') {
-                $tag = $name || '*';
-            } else {
-                $tag = '*';
-            }
+            my $tag = $id_class eq '' ? $name || '*' : '*';
             
             if (defined $parms{prefix} and not $tag =~ /[*:|]/) {
                 $tag = join ':', $parms{prefix}, $tag;
@@ -146,8 +140,7 @@ sub to_xpath {
             
             if (! $wrote_tag++) {
                 push @parts, $tag;
-                $tag_index = $#parts;
-            };
+            }
 
             # XXX Shouldn't the RE allow both, ID and class?
             if ($id_class eq '#') { # ID
@@ -164,8 +157,7 @@ sub to_xpath {
             # If we have no tag output yet, write the tag:
             if (! $wrote_tag++) {
                 push @parts, '*';
-                $tag_index = $#parts;
-            };
+            }
             push @parts, "[\@$1]";
         } elsif ($rule =~ $reg->{badattr}) {
             Carp::croak "Invalid attribute-value selector '$rule'";
@@ -178,14 +170,12 @@ sub to_xpath {
                 push @parts, "[not(", convert_attribute_match( $1, $2, $^N ), ")]";
             } elsif ($sub_rule =~ s/$reg->{attr1}//) {
                 push @parts, "[not(\@$1)]";
-            } elsif ($rule =~ $reg->{badattr}) {
-                Carp::croak "Invalid attribute-value selector '$rule'";
+            } elsif ($sub_rule =~ /$reg->{badattr}/) {
+                Carp::croak "Invalid negated attribute-value selector ':not($sub_rule)'";
             } else {
                 my $xpath = selector_to_xpath($sub_rule);
                 $xpath =~ s!^//!!;
                 push @parts, "[not(self::$xpath)]";
-            #} else {
-            #    Carp::croak "Can't translate '$sub_rule' inside :not()";
             }
         }
 
@@ -202,6 +192,10 @@ sub to_xpath {
                 push @parts, nth_child(1), nth_last_child(1);
             } elsif ($1 =~ /^lang\(([\w\-]+)\)$/) {
                 push @parts, "[\@xml:lang='$1' or starts-with(\@xml:lang, '$1-')]";
+            } elsif ($1 =~ /^nth-child\(odd\)$/) {
+                push @parts, nth_child(2, 1);
+            } elsif ($1 =~ /^nth-child\(even\)$/) {
+                push @parts, nth_child(2, 0);
             } elsif ($1 =~ /^nth-child\((\d+)\)$/) {
                 push @parts, nth_child($1);
             } elsif ($1 =~ /^nth-child\((\d+)n(?:\+(\d+))?\)$/) {
@@ -235,7 +229,6 @@ sub to_xpath {
                 push @parts, "/";
             } elsif ($match =~ /\+/) {
                 push @parts, "/following-sibling::*[1]/self::";
-                $tag_index = $#parts;
             } elsif ($match =~ /\~/) {
                 push @parts, "/following-sibling::";
             } elsif ($match =~ /^\s*$/) {
@@ -245,7 +238,6 @@ sub to_xpath {
             }
 
             # new context
-            undef $tag;
             undef $wrote_tag;
         }
 
@@ -253,7 +245,6 @@ sub to_xpath {
         if ($rule =~ s/$reg->{comma}//) {
             push @parts, " | ", "$root/"; # ending one rule and beginning another
             $root_index = $#parts;
-            undef $tag;
             undef $wrote_tag;
         }
     }

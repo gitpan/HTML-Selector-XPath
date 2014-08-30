@@ -1,6 +1,11 @@
 Revision history for Perl extension HTML::Selector::XPath
 
-0.17
+0.18 NEXT
+      - Fix bug in `:not(...)[attr] (Aaron Crane)
+      - Support `:nth-child(odd)` and `:nth-child(even)` (Aaron Crane)
+      - Translation of `[attr$=tail]` works with XPath 1.0 (Aaron Crane)
+
+0.17 Sat Aug 30 16:12:52 GMT+2 2014
       - Support unicode characters for id and class selectors (aereal)
       - Normalize space characters of the class attribute (hitode909)
 
