@@ -1,5 +1,9 @@
 Revision history for Perl extension HTML::Selector::XPath
 
+0.17
+      - Support unicode characters for id and class selectors (aereal)
+      - Normalize space characters of the class attribute (hitode909)
+
 0.16 Sat Aug 10 17:52:00 GMT 2013
       - Added link to repository (D. Steinbrunner)
 

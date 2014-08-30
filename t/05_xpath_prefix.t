@@ -63,6 +63,6 @@ E#myid
 --- selector
 foo.bar, bar
 --- xpath
-/R/xhtml:foo[contains(concat(' ', @class, ' '), ' bar ')] | /R/xhtml:bar
+/R/xhtml:foo[contains(concat(' ', normalize-space(@class), ' '), ' bar ')] | /R/xhtml:bar
 
 

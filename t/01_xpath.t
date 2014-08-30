@@ -62,7 +62,7 @@ E > F
 --- selector
 p.pastoral.marine
 --- xpath
-//p[contains(concat(' ', @class, ' '), ' pastoral ')][contains(concat(' ', @class, ' '), ' marine ')]
+//p[contains(concat(' ', normalize-space(@class), ' '), ' pastoral ')][contains(concat(' ', normalize-space(@class), ' '), ' marine ')]
 
 ===
 --- selector
@@ -104,7 +104,7 @@ E + #bar
 --- selector
 E + .bar
 --- xpath
-//E/following-sibling::*[1]/self::*[contains(concat(' ', @class, ' '), ' bar ')]
+//E/following-sibling::*[1]/self::*[contains(concat(' ', normalize-space(@class), ' '), ' bar ')]
 
 ===
 --- selector
@@ -188,7 +188,7 @@ E[lang|=en]
 --- selector
 DIV.warning
 --- xpath
-//DIV[contains(concat(' ', @class, ' '), ' warning ')]
+//DIV[contains(concat(' ', normalize-space(@class), ' '), ' warning ')]
 
 ===
 --- selector
@@ -200,7 +200,7 @@ E#myid
 --- selector
 foo.bar, bar
 --- xpath
-//foo[contains(concat(' ', @class, ' '), ' bar ')] | //bar
+//foo[contains(concat(' ', normalize-space(@class), ' '), ' bar ')] | //bar
 
 ===
 --- selector
@@ -267,7 +267,7 @@ E ~ F
 --- selector
 E ~ F.foo
 --- xpath
-//E/following-sibling::F[contains(concat(' ', @class, ' '), ' foo ')]
+//E/following-sibling::F[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]
 
 ===
 --- selector
@@ -285,13 +285,13 @@ E:contains( "Hello" )
 E:contains( "Hello" ).C
 
 --- xpath
-//E[text()[contains(string(.),"Hello")]][contains(concat(' ', @class, ' '), ' C ')]
+//E[text()[contains(string(.),"Hello")]][contains(concat(' ', normalize-space(@class), ' '), ' C ')]
 ===
 --- selector
 E:contains( "Hello" ) .C
 
 --- xpath
-//E[text()[contains(string(.),"Hello")]]//*[contains(concat(' ', @class, ' '), ' C ')]
+//E[text()[contains(string(.),"Hello")]]//*[contains(concat(' ', normalize-space(@class), ' '), ' C ')]
 ===
 --- selector
 F, E:contains( "Hello" )
@@ -320,7 +320,7 @@ E ~ #bar
 --- selector
 E ~ .bar
 --- xpath
-//E/following-sibling::*[contains(concat(' ', @class, ' '), ' bar ')]
+//E/following-sibling::*[contains(concat(' ', normalize-space(@class), ' '), ' bar ')]
 
 ===
 --- selector
@@ -332,19 +332,19 @@ E ~ *
 --- selector
 .foo ~ E
 --- xpath
-//*[contains(concat(' ', @class, ' '), ' foo ')]/following-sibling::E
+//*[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]/following-sibling::E
 
 ===
 --- selector
 .foo ~ *
 --- xpath
-//*[contains(concat(' ', @class, ' '), ' foo ')]/following-sibling::*
+//*[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]/following-sibling::*
 
 ===
 --- selector
 .foo ~ .bar
 --- xpath
-//*[contains(concat(' ', @class, ' '), ' foo ')]/following-sibling::*[contains(concat(' ', @class, ' '), ' bar ')]
+//*[contains(concat(' ', normalize-space(@class), ' '), ' foo ')]/following-sibling::*[contains(concat(' ', normalize-space(@class), ' '), ' bar ')]
 
 ===
 --- selector
@@ -367,13 +367,13 @@ E ~ *
 --- selector
 E.c:first-child
 --- xpath
-//E[contains(concat(' ', @class, ' '), ' c ')][count(preceding-sibling::*) = 0 and parent::*]
+//E[contains(concat(' ', normalize-space(@class), ' '), ' c ')][count(preceding-sibling::*) = 0 and parent::*]
 
 ===
 --- selector
 E:first-child.c
 --- xpath
-//E[count(preceding-sibling::*) = 0 and parent::*][contains(concat(' ', @class, ' '), ' c ')]
+//E[count(preceding-sibling::*) = 0 and parent::*][contains(concat(' ', normalize-space(@class), ' '), ' c ')]
 
 ===
 --- selector
@@ -476,13 +476,13 @@ E#i:lang(c):first-child
 --- selector
 .warning
 --- xpath
-//*[contains(concat(' ', @class, ' '), ' warning ')]
+//*[contains(concat(' ', normalize-space(@class), ' '), ' warning ')]
 
 ===
 --- selector
 *.warning
 --- xpath
-//*[contains(concat(' ', @class, ' '), ' warning ')]
+//*[contains(concat(' ', normalize-space(@class), ' '), ' warning ')]
 
  
 ===

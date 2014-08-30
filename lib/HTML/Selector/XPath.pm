@@ -2,7 +2,7 @@ package HTML::Selector::XPath;
 
 use strict;
 use 5.008_001;
-our $VERSION = '0.16';
+our $VERSION = '0.17';
 
 require Exporter;
 our @EXPORT_OK = qw(selector_to_xpath);
@@ -20,7 +20,7 @@ my $ident = qr/(?![0-9]|-[-0-9])[-_a-zA-Z0-9]+/;
 
 my $reg = {
     # tag name/id/class
-    element => qr/^([#.]?)([a-z0-9\\*_-]*)((\|)([a-z0-9\\*_-]*))?/i,
+    element => qr/^([#.]?)([^\s'"#.\/:@,=~>()\[\]|]*)((\|)([a-z0-9\\*_-]*))?/i,
     # attribute presence
     attr1   => qr/^\[ \s* ($ident) \s* \]/x,
     # attribute value match
@@ -153,7 +153,7 @@ sub to_xpath {
             if ($id_class eq '#') { # ID
                 push @parts, "[\@id='$name']";
             } elsif ($id_class eq '.') { # class
-                push @parts, "[contains(concat(' ', \@class, ' '), ' $name ')]";
+                push @parts, "[contains(concat(' ', normalize-space(\@class), ' '), ' $name ')]";
             };
         };
 
